@@ -13,7 +13,9 @@ const WORKER_URL = "https://muddy-limit-7eee.787688nev0908.workers.dev/";
 const systemMessage = {
   role: "system",
   content:
-    "You are a helpful L'Oreal routine advisor. Use prior chat context to answer follow-up questions clearly and consistently.",
+    "You are a helpful L'Oreal routine advisor. Use prior chat context to answer follow-up questions clearly and consistently. Do not answer unrelated questions. If someone does, then politely decline and change the topic.",
+
+// Set initial message",
 };
 
 /* We keep recent messages so follow-up questions stay contextual. */
@@ -21,10 +23,10 @@ const chatMessages = [
   {
     role: "assistant",
     content:
-      "Hi! Ask me about products, order of steps, or adjustments to your routine.",
+      "👋 Hello! I am a LOréal assistant. How may I help you today?",
   },
 ];
-const MAX_HISTORY_MESSAGES = 12;
+const MAX_HISTORY_MESSAGES = 10;
 const SELECTED_PRODUCTS_STORAGE_KEY = "selectedProducts";
 const selectedProducts = new Map();
 let currentCategoryProducts = [];
@@ -312,7 +314,7 @@ async function handleGenerateRoutine() {
   if (selectedProductsArray.length === 0) {
     addMessageToChat(
       "assistant",
-      "Select at least one product, then click Generate Routine.",
+      "Please select at least one product, then click Generate Routine.",
     );
     return;
   }
