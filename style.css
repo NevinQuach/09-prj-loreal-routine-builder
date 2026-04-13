@@ -82,6 +82,18 @@ body {
   margin-bottom: 20px;
 }
 
+.chat-message {
+  margin-bottom: 12px;
+}
+
+.chat-message p {
+  margin: 0 0 8px;
+}
+
+.chat-message ul {
+  margin: 0 0 8px 20px;
+}
+
 /* placeholder message */
 .placeholder-message {
   width: 100%;

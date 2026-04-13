@@ -13,22 +13,22 @@ const WORKER_URL = "https://muddy-limit-7eee.787688nev0908.workers.dev/";
 const systemMessage = {
   role: "system",
   content:
-    "You are a helpful L'Oreal routine advisor. Use prior chat context to answer follow-up questions clearly and consistently. Do not answer unrelated questions. If someone does, then politely decline and change the topic.",
+    "You are a helpful L'Oreal routine advisor. Use prior chat context to answer follow-up questions clearly and consistently. Do not answer unrelated questions. If someone does, then politely decline and change the topic. When giving steps, tips, or product recommendations, format them as bullet points using '-' so they are easy to read.",
 
-// Set initial message",
+  // Set initial message",
 };
 
 /* We keep recent messages so follow-up questions stay contextual. */
 const chatMessages = [
   {
     role: "assistant",
-    content:
-      "👋 Hello! I am a LOréal assistant. How may I help you today?",
+    content: "👋 Hello! I am a LOréal assistant. How may I help you today?",
   },
 ];
 const MAX_HISTORY_MESSAGES = 10;
 const SELECTED_PRODUCTS_STORAGE_KEY = "selectedProducts";
 const selectedProducts = new Map();
+let latestRoutine = "";
 let currentCategoryProducts = [];
 
 /* Show initial placeholder until user selects a category */
@@ -251,16 +251,67 @@ generateRoutineBtn.addEventListener("click", () => {
 });
 
 function addMessageToChat(role, content) {
-  const message = document.createElement("p");
+  const message = document.createElement("div");
+  message.className = "chat-message";
 
   if (role === "user") {
-    message.innerHTML = `<strong>You:</strong> ${content}`;
+    message.innerHTML = `<strong>You:</strong> ${escapeHtml(content)}`;
   } else {
-    message.innerHTML = `<strong>Advisor:</strong> ${content}`;
+    message.innerHTML = `<strong>Advisor:</strong> ${formatAssistantMessage(content)}`;
   }
 
   chatWindow.appendChild(message);
   chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+
+function escapeHtml(text) {
+  return text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+function formatAssistantMessage(content) {
+  const lines = content.split("\n");
+  const htmlParts = [];
+  let bulletItems = [];
+
+  function flushBullets() {
+    if (bulletItems.length === 0) {
+      return;
+    }
+
+    const bulletsHtml = bulletItems
+      .map((item) => `<li>${escapeHtml(item)}</li>`)
+      .join("");
+
+    htmlParts.push(`<ul>${bulletsHtml}</ul>`);
+    bulletItems = [];
+  }
+
+  lines.forEach((line) => {
+    const trimmedLine = line.trim();
+    const bulletMatch = trimmedLine.match(/^[-*•]\s+(.+)/);
+
+    if (bulletMatch) {
+      bulletItems.push(bulletMatch[1]);
+      return;
+    }
+
+    flushBullets();
+
+    if (trimmedLine) {
+      htmlParts.push(`<p>${escapeHtml(trimmedLine)}</p>`);
+    }
+  });
+
+  flushBullets();
+
+  if (htmlParts.length === 0) {
+    return `<p>${escapeHtml(content)}</p>`;
+  }
+
+  return htmlParts.join("");
 }
 
 function addMessageToHistory(role, content) {
@@ -272,7 +323,28 @@ function addMessageToHistory(role, content) {
 }
 
 function buildMessagesForRequest() {
-  return [systemMessage, ...chatMessages];
+  const selectedProductsArray = Array.from(selectedProducts.values());
+  const selectedProductsSummary = selectedProductsArray
+    .map((product) => `${product.name} (${product.category})`)
+    .join(", ");
+
+  let contextText =
+    "Conversation context: Answer based on the current chat history. If the user asks a follow-up question, connect it to earlier routine advice.";
+
+  if (selectedProductsSummary) {
+    contextText += `\nSelected products: ${selectedProductsSummary}.`;
+  }
+
+  if (latestRoutine) {
+    contextText += `\nLatest generated routine:\n${latestRoutine}`;
+  }
+
+  const contextMessage = {
+    role: "system",
+    content: contextText,
+  };
+
+  return [systemMessage, contextMessage, ...chatMessages];
 }
 
 async function requestAssistantReply() {
@@ -333,6 +405,7 @@ async function handleGenerateRoutine() {
 
   try {
     const aiReply = await requestAssistantReply();
+    latestRoutine = aiReply;
 
     addMessageToChat("assistant", aiReply);
     addMessageToHistory("assistant", aiReply);
